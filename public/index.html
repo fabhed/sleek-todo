@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container mx-auto px-4">
+    <h1 class="text-4xl my-8">Todo App</h1>
+    <form id="todo-form" class="mb-8">
+      <input id="todo-input" class="border-2 border-gray-300 rounded px-4 py-2 mr-4" type="text" placeholder="New todo">
+      <button class="bg-blue-500 text-white px-4 py-2 rounded">Add</button>
+    </form>
+    <ul id="todo-list" class="space-y-4"></ul>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>

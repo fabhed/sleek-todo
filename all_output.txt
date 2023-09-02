@@ -1,0 +1,200 @@
+Let's start by creating the server side of our application. We will use Express.js to create our server and serve our static files. We will also use SQLite to store our todos.
+
+server.js
+
+```js
+const express = require("express");
+const Database = require("better-sqlite3");
+const path = require("path");
+const app = express();
+const port = 8080;
+
+// Create a new database or connect to an existing one
+const db = new Database("./database.sqlite");
+
+// Create a table for todos if it doesn't exist
+const tableCreationStmt = db.prepare(`
+  CREATE TABLE IF NOT EXISTS todos (
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL,
+      completed BOOLEAN DEFAULT 0
+  )
+`);
+
+tableCreationStmt.run();
+
+// Parse JSON bodies
+app.use(express.json());
+
+// Serve the public directory
+app.use(express.static(path.join(__dirname, "public")));
+
+// Get all todos
+app.get("/api/todos", (req, res) => {
+  const todos = db.prepare("SELECT * FROM todos").all();
+  res.json(todos);
+});
+
+// Create a new todo
+app.post("/api/todos", (req, res) => {
+  const { title } = req.body;
+  const stmt = db.prepare("INSERT INTO todos (title) VALUES (?)");
+  const info = stmt.run(title);
+  res.json(info);
+});
+
+// Update a todo
+app.put("/api/todos/:id", (req, res) => {
+  const { id } = req.params;
+  const { title, completed } = req.body;
+  const stmt = db.prepare("UPDATE todos SET title = ?, completed = ? WHERE id = ?");
+  const info = stmt.run(title, completed, id);
+  res.json(info);
+});
+
+// Delete a todo
+app.delete("/api/todos/:id", (req, res) => {
+  const { id } = req.params;
+  const stmt = db.prepare("DELETE FROM todos WHERE id = ?");
+  const info = stmt.run(id);
+  res.json(info);
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
+```
+
+Next, let's create our frontend. We will use HTML, CSS and JavaScript for this. We will also use Tailwind CSS for styling.
+
+public/index.html
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container mx-auto px-4">
+    <h1 class="text-4xl my-8">Todo App</h1>
+    <form id="todo-form" class="mb-8">
+      <input id="todo-input" class="border-2 border-gray-300 rounded px-4 py-2 mr-4" type="text" placeholder="New todo">
+      <button class="bg-blue-500 text-white px-4 py-2 rounded">Add</button>
+    </form>
+    <ul id="todo-list" class="space-y-4"></ul>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
+```
+
+public/style.css
+
+```css
+.completed {
+  text-decoration: line-through;
+}
+```
+
+public/main.js
+
+```js
+const todoForm = document.getElementById("todo-form");
+const todoInput = document.getElementById("todo-input");
+const todoList = document.getElementById("todo-list");
+
+// Fetch todos from the server and display them
+async function fetchTodos() {
+  const res = await fetch("/api/todos");
+  const todos = await res.json();
+  todoList.innerHTML = "";
+  for (const todo of todos) {
+    addTodoToList(todo);
+  }
+}
+
+// Add a todo to the list
+function addTodoToList(todo) {
+  const li = document.createElement("li");
+  li.classList.add("flex", "justify-between", "items-center", "p-4", "border", "border-gray-300", "rounded");
+  li.innerHTML = `
+    <span class="${todo.completed ? "completed" : ""}">${todo.title}</span>
+    <div>
+      <button class="toggle bg-green-500 text-white px-2 py-1 rounded mr-2">Toggle</button>
+      <button class="delete bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+    </div>
+  `;
+  li.querySelector(".toggle").addEventListener("click", () => toggleCompleted(todo.id, !todo.completed));
+  li.querySelector(".delete").addEventListener("click", () => deleteTodo(todo.id));
+  todoList.appendChild(li);
+}
+
+// Add a new todo
+async function addTodo() {
+  const title = todoInput.value;
+  const res = await fetch("/api/todos", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ title })
+  });
+  const todo = await res.json();
+  addTodoToList(todo);
+  todoInput.value = "";
+}
+
+// Toggle the completed status of a todo
+async function toggleCompleted(id, completed) {
+  await fetch(`/api/todos/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ completed })
+  });
+  fetchTodos();
+}
+
+// Delete a todo
+async function deleteTodo(id) {
+  await fetch(`/api/todos/${id}`, {
+    method: "DELETE"
+  });
+  fetchTodos();
+}
+
+// Fetch todos when the page loads
+fetchTodos();
+
+// Add a new todo when the form is submitted
+todoForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  addTodo();
+});
+```
+
+Finally, let's create our package.json file.
+
+package.json
+
+```json
+{
+  "name": "todo-app",
+  "version": "1.0.0",
+  "description": "A simple todo app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "better-sqlite3": "^8.5.2"
+  }
+}
+```
